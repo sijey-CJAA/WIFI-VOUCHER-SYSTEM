@@ -5,9 +5,11 @@ import { Wifi, ShieldCheck, Mail, Lock, User, ArrowRight, Sparkles, AlertCircle,
 interface AuthCardProps {
   onAuthSuccess: (user: any) => void;
   onDemoLogin: () => void;
+  onSwitchToCustomer?: () => void;
 }
 
-export const AuthCard: React.FC<AuthCardProps> = ({ onAuthSuccess, onDemoLogin }) => {
+export const AuthCard: React.FC<AuthCardProps> = ({ onAuthSuccess, onDemoLogin, onSwitchToCustomer }) => {
+
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -310,13 +312,34 @@ export const AuthCard: React.FC<AuthCardProps> = ({ onAuthSuccess, onDemoLogin }
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              marginBottom: '10px',
             }}
           >
             <Sparkles size={16} color="#fbbf24" />
             <span>Enter as Guest Administrator (Live Supabase DB)</span>
           </button>
+
+          {onSwitchToCustomer && (
+            <button
+              type="button"
+              className="btn btn-emerald"
+              onClick={onSwitchToCustomer}
+              style={{
+                width: '100%',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              <Wifi size={16} />
+              <span>Customer Portal (Enter Voucher Code)</span>
+            </button>
+          )}
         </div>
+
 
         {/* Security & Organization Notice */}
         <div style={{

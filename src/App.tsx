@@ -8,9 +8,14 @@ import { VoucherManager } from './components/VoucherManager';
 import { RouterScriptModal } from './components/RouterScriptModal';
 import { PortalPreviewModal } from './components/PortalPreviewModal';
 
+import { CustomerPortal } from './components/CustomerPortal';
+
 function App() {
   const [sessionUser, setSessionUser] = useState<any | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [isCustomerView, setIsCustomerView] = useState<boolean>(() => {
+    return window.location.search.includes('portal=true') || window.location.hash.includes('portal');
+  });
   const [activeTab, setActiveTab] = useState<ActiveTab>('wifi-setup');
   const [currentSsid, setCurrentSsid] = useState<string>('VOUCHER-WIFI-5G');
   const [isScriptModalOpen, setIsScriptModalOpen] = useState<boolean>(false);
@@ -82,15 +87,27 @@ function App() {
     setWifiSettings((prev) => ({ ...prev, ssid_name: newSsid }));
   };
 
+  // If customer view is active, show the Captive Portal page
+  if (isCustomerView) {
+    return (
+      <CustomerPortal
+        settings={wifiSettings}
+        onSwitchToAdmin={() => setIsCustomerView(false)}
+      />
+    );
+  }
+
   // If not logged in and not in demo mode, show Auth Card
   if (!sessionUser && !isDemoMode) {
     return (
       <AuthCard
         onAuthSuccess={(user) => setSessionUser(user)}
         onDemoLogin={handleDemoLogin}
+        onSwitchToCustomer={() => setIsCustomerView(true)}
       />
     );
   }
+
 
   return (
     <div className="app-container">
