@@ -168,43 +168,54 @@ ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.active_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: Authenticated users can read all profiles and update their own
+DROP POLICY IF EXISTS "Allow authenticated read profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated read profiles" ON public.profiles
     FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
 CREATE POLICY "Allow users to update own profile" ON public.profiles
     FOR UPDATE TO authenticated USING (auth.uid() = id);
 
 -- Wifi Settings:
 -- Public / captive portal can read active WiFi configuration
+DROP POLICY IF EXISTS "Public read wifi settings" ON public.wifi_settings;
 CREATE POLICY "Public read wifi settings" ON public.wifi_settings
     FOR SELECT TO anon, authenticated USING (is_active = true);
 
 -- Only authenticated users (admins) can insert or update wifi settings
+DROP POLICY IF EXISTS "Admins manage wifi settings" ON public.wifi_settings;
 CREATE POLICY "Admins manage wifi settings" ON public.wifi_settings
     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Voucher Plans:
 -- Anyone can see active voucher plans
+DROP POLICY IF EXISTS "Public read active voucher plans" ON public.voucher_plans;
 CREATE POLICY "Public read active voucher plans" ON public.voucher_plans
     FOR SELECT TO anon, authenticated USING (is_active = true);
 
 -- Authenticated admins can manage all voucher plans
+DROP POLICY IF EXISTS "Admins manage voucher plans" ON public.voucher_plans;
 CREATE POLICY "Admins manage voucher plans" ON public.voucher_plans
     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Vouchers:
 -- Public can check if a voucher code exists and is valid
+DROP POLICY IF EXISTS "Public verify voucher code" ON public.vouchers;
 CREATE POLICY "Public verify voucher code" ON public.vouchers
     FOR SELECT TO anon USING (status IN ('available', 'active'));
 
 -- Admins have full access to vouchers
+DROP POLICY IF EXISTS "Admins manage vouchers" ON public.vouchers;
 CREATE POLICY "Admins manage vouchers" ON public.vouchers
     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Active Sessions:
 -- Admins can view and manage sessions
+DROP POLICY IF EXISTS "Admins manage active sessions" ON public.active_sessions;
 CREATE POLICY "Admins manage active sessions" ON public.active_sessions
     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Anon create or update own session" ON public.active_sessions;
 CREATE POLICY "Anon create or update own session" ON public.active_sessions
     FOR INSERT TO anon WITH CHECK (true);
+
