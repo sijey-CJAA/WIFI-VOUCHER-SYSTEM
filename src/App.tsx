@@ -1,122 +1,145 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { supabase, type WifiSettings } from './lib/supabase';
+import { AuthCard } from './components/AuthCard';
+import { Navbar, type ActiveTab } from './components/Navbar';
+
+import { WifiSetup } from './components/WifiSetup';
+import { VoucherManager } from './components/VoucherManager';
+import { RouterScriptModal } from './components/RouterScriptModal';
+import { PortalPreviewModal } from './components/PortalPreviewModal';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [sessionUser, setSessionUser] = useState<any | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('wifi-setup');
+  const [currentSsid, setCurrentSsid] = useState<string>('VOUCHER-WIFI-5G');
+  const [isScriptModalOpen, setIsScriptModalOpen] = useState<boolean>(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState<boolean>(false);
+  const [wifiSettings, setWifiSettings] = useState<WifiSettings>({
+    ssid_name: 'VOUCHER-WIFI-5G',
+    portal_title: 'High-Speed Guest WiFi',
+    portal_subtitle: 'Enter your voucher code to connect instantly',
+    brand_color: '#3b82f6',
+    gateway_ip: '192.168.88.1',
+    router_type: 'mikrotik',
+    dns_primary: '1.1.1.1',
+    dns_secondary: '8.8.8.8',
+    bandwidth_down_limit: 15,
+    bandwidth_up_limit: 5,
+    session_timeout_minutes: 180,
+    idle_timeout_minutes: 30,
+    currency_symbol: '₱',
+    support_phone: '+63 900 000 0000',
+    terms_notice: 'By connecting, you agree to fair use and terms of acceptable service.',
+    is_active: true,
+  });
+
+  // Check Supabase session on startup
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setSessionUser(session.user);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionUser(session?.user ?? null);
+    });
+
+    // Also fetch initial wifi settings
+    supabase.from('wifi_settings').select('*').limit(1).maybeSingle().then(({ data }) => {
+      if (data) {
+        setWifiSettings(data);
+        setCurrentSsid(data.ssid_name);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSessionUser(null);
+    setIsDemoMode(false);
+  };
+
+  const handleDemoLogin = () => {
+    setIsDemoMode(true);
+    setSessionUser({
+      id: 'demo-admin-id',
+      email: 'admin@wifi-voucher.local',
+      user_metadata: {
+        full_name: 'Hotspot Superadmin',
+        organization: 'Wifi Voucher System',
+      },
+    });
+  };
+
+  const handleSsidUpdate = (newSsid: string) => {
+    setCurrentSsid(newSsid);
+    setWifiSettings((prev) => ({ ...prev, ssid_name: newSsid }));
+  };
+
+  // If not logged in and not in demo mode, show Auth Card
+  if (!sessionUser && !isDemoMode) {
+    return (
+      <AuthCard
+        onAuthSuccess={(user) => setSessionUser(user)}
+        onDemoLogin={handleDemoLogin}
+      />
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-container">
+      {/* Top Sticky Header */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          if (tab === 'router-script') {
+            setIsScriptModalOpen(true);
+          } else if (tab === 'portal-preview') {
+            setIsPortalModalOpen(true);
+          } else {
+            setActiveTab(tab);
+          }
+        }}
+        user={sessionUser}
+        onLogout={handleLogout}
+        ssid={currentSsid}
+      />
 
-      <div className="ticks"></div>
+      {/* Main Content Area */}
+      <main style={{ flex: 1, paddingBottom: '60px' }}>
+        {activeTab === 'wifi-setup' && (
+          <WifiSetup
+            onSsidUpdated={handleSsidUpdate}
+            onOpenScriptModal={() => setIsScriptModalOpen(true)}
+            onOpenPortalPreview={() => setIsPortalModalOpen(true)}
+          />
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {activeTab === 'vouchers' && (
+          <VoucherManager currencySymbol={wifiSettings.currency_symbol || '₱'} />
+        )}
+      </main>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Modals */}
+      <RouterScriptModal
+        isOpen={isScriptModalOpen}
+        onClose={() => setIsScriptModalOpen(false)}
+        settings={wifiSettings}
+      />
+
+      <PortalPreviewModal
+        isOpen={isPortalModalOpen}
+        onClose={() => setIsPortalModalOpen(false)}
+        settings={wifiSettings}
+      />
+    </div>
+  );
 }
 
-export default App
+export default App;
