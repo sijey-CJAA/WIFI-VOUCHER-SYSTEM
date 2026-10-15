@@ -110,6 +110,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     const cleanCode = voucherCode.trim().toUpperCase();
     if (!cleanCode) return;
 
+    // Prevent burning multiple vouchers on the same device simultaneously
+    if (sessionSuccess && new Date(sessionSuccess.expiresAt).getTime() > Date.now()) {
+      setErrorMsg(`This device already has an active session for voucher ${sessionSuccess.voucherCode}. Please wait until it finishes before using another voucher.`);
+      return;
+    }
+
     setVerifying(true);
     setErrorMsg(null);
 

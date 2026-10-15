@@ -10,14 +10,17 @@ import {
   Copy, 
   Check, 
   RefreshCw, 
-  Tag, 
   Layers,
-  PowerOff
+  PowerOff,
+  History,
+  Radio
 } from 'lucide-react';
 
 interface VoucherManagerProps {
   currencySymbol: string;
 }
+
+type InventorySection = 'active' | 'unused' | 'history';
 
 export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }) => {
   const [plans, setPlans] = useState<VoucherPlan[]>([]);
@@ -27,7 +30,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
   const [prefix, setPrefix] = useState<string>('VOUCH');
   const [loading, setLoading] = useState<boolean>(true);
   const [generating, setGenerating] = useState<boolean>(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [activeSection, setActiveSection] = useState<InventorySection>('active');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -45,7 +48,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
       const mins = v.plan?.duration_minutes || 60;
       return { 
         isExpired: false, 
-        remainingText: `${mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`} (Unused)`, 
+        remainingText: `${mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`} validity`, 
         badgeClass: 'badge-emerald' 
       };
     }
@@ -69,13 +72,13 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
     return { isExpired: false, remainingText: formatted, badgeClass: 'badge-blue' };
   };
 
-  // Fetch plans and vouchers and auto-expire outdated vouchers
+  // Fetch plans and vouchers and auto-expire overdue vouchers
   const loadData = async () => {
     setLoading(true);
     try {
       const [plansRes, vouchersRes] = await Promise.all([
         supabase.from('voucher_plans').select('*').order('price', { ascending: true }),
-        supabase.from('vouchers').select('*, plan:voucher_plans(*)').order('created_at', { ascending: false }).limit(50),
+        supabase.from('vouchers').select('*, plan:voucher_plans(*)').order('created_at', { ascending: false }).limit(100),
       ]);
 
       if (plansRes.data) {
@@ -89,7 +92,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
         const loaded = vouchersRes.data as any[];
         const outdatedIds: string[] = [];
 
-        // Check if any active vouchers are already past their expiration
+        // Check if any active vouchers are already past expiration
         const processed = loaded.map((v) => {
           if (v.status === 'active') {
             const activatedTime = v.activated_at ? new Date(v.activated_at).getTime() : new Date(v.created_at).getTime();
@@ -105,7 +108,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
         setVouchers(processed);
 
-        // Auto-update outdated vouchers in Supabase so "when it ends, it ends literally"
+        // Auto-update outdated vouchers in Supabase
         if (outdatedIds.length > 0) {
           try {
             await supabase.from('vouchers').update({ status: 'expired' }).in('id', outdatedIds);
@@ -114,7 +117,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
               last_seen_at: new Date().toISOString() 
             }).in('voucher_id', outdatedIds);
             
-            setStatusMsg(`Auto-expired ${outdatedIds.length} overdue active voucher(s).`);
+            setStatusMsg(`Moved ${outdatedIds.length} overdue voucher(s) to History (Expired).`);
             setTimeout(() => setStatusMsg(null), 4000);
           } catch (updateErr) {
             console.warn('Auto-expire sync error:', updateErr);
@@ -163,7 +166,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
               last_seen_at: new Date().toISOString() 
             }).in('voucher_id', newlyExpiredIds);
           });
-          setStatusMsg(`${newlyExpiredIds.length} voucher session(s) expired.`);
+          setStatusMsg(`${newlyExpiredIds.length} voucher(s) finished and moved to History.`);
           setTimeout(() => setStatusMsg(null), 3500);
         }
 
@@ -184,7 +187,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
       }).eq('voucher_id', voucherId);
 
       setVouchers((prev) => prev.map((v) => v.id === voucherId ? { ...v, status: 'expired' } : v));
-      setStatusMsg(`Ended session for voucher ${code}.`);
+      setStatusMsg(`Ended session for voucher ${code} (Moved to History).`);
       setTimeout(() => setStatusMsg(null), 3500);
     } catch (err: any) {
       console.error('Error terminating voucher:', err);
@@ -220,7 +223,8 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
       if (data) {
         setVouchers((prev) => [...(data as any), ...prev]);
-        setStatusMsg(`Generated ${batchCount} new vouchers.`);
+        setStatusMsg(`Generated ${batchCount} new vouchers in Unused section.`);
+        setActiveSection('unused');
         setTimeout(() => setStatusMsg(null), 3500);
       }
     } catch (err: any) {
@@ -241,13 +245,25 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
     window.print();
   };
 
-  // Filter vouchers
-  const filteredVouchers = vouchers.filter((v) => {
-    const matchesFilter = filterStatus === 'all' || v.status === filterStatus;
-    const matchesSearch = v.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.plan?.name && v.plan.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesFilter && matchesSearch;
-  });
+  // Group vouchers by category
+  const activeVouchers = vouchers.filter((v) => v.status === 'active' && !getVoucherExpiryInfo(v).isExpired);
+  const unusedVouchers = vouchers.filter((v) => v.status === 'available');
+  const historyVouchers = vouchers.filter((v) => v.status === 'expired' || v.status === 'used' || v.status === 'disabled' || (v.status === 'active' && getVoucherExpiryInfo(v).isExpired));
+
+  // Current display list based on active section & search query
+  const getSectionVouchers = () => {
+    let list: Voucher[] = [];
+    if (activeSection === 'active') list = activeVouchers;
+    else if (activeSection === 'unused') list = unusedVouchers;
+    else if (activeSection === 'history') list = historyVouchers;
+
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter((v) => v.code.toLowerCase().includes(q) || (v.plan?.name && v.plan.name.toLowerCase().includes(q)));
+  };
+
+  const displayedList = getSectionVouchers();
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px' }}>
@@ -276,7 +292,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Issue access tokens, manage rate plans, monitor live session timers, and terminate expired vouchers.
+            Generate access codes, monitor live active sessions, and review expired voucher history.
           </p>
         </div>
 
@@ -391,7 +407,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
           <Layers size={16} color="var(--primary)" />
           <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>
-            Generate Voucher Batch
+            Quick Batch Voucher Generator
           </h3>
         </div>
 
@@ -454,79 +470,211 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
         </div>
       </div>
 
-      {/* Vouchers Table */}
+      {/* Divided Sections Container */}
       <div className="plain-card" style={{ padding: '20px' }}>
+        {/* Section Navigation Tabs */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '14px',
-          marginBottom: '16px',
+          marginBottom: '18px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '14px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Tag size={16} color="var(--primary)" />
-            <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>
-              Voucher Inventory ({filteredVouchers.length})
-            </h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setActiveSection('active')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: activeSection === 'active' ? '1px solid var(--border-color)' : '1px solid transparent',
+                background: activeSection === 'active' ? 'var(--bg-secondary)' : 'transparent',
+                color: activeSection === 'active' ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              <Radio size={15} color={activeSection === 'active' ? 'var(--primary)' : 'var(--text-dim)'} />
+              <span>Active Sessions</span>
+              <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
+                {activeVouchers.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('unused')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: activeSection === 'unused' ? '1px solid var(--border-color)' : '1px solid transparent',
+                background: activeSection === 'unused' ? 'var(--bg-secondary)' : 'transparent',
+                color: activeSection === 'unused' ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              <Ticket size={15} color={activeSection === 'unused' ? 'var(--primary)' : 'var(--text-dim)'} />
+              <span>Unused Vouchers</span>
+              <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
+                {unusedVouchers.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('history')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: activeSection === 'history' ? '1px solid var(--border-color)' : '1px solid transparent',
+                background: activeSection === 'history' ? 'var(--bg-secondary)' : 'transparent',
+                color: activeSection === 'history' ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              <History size={15} color={activeSection === 'history' ? 'var(--primary)' : 'var(--text-dim)'} />
+              <span>Voucher History</span>
+              <span className="badge badge-rose" style={{ fontSize: '0.7rem' }}>
+                {historyVouchers.length}
+              </span>
+            </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', width: '220px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-dim)' }} />
-              <input
-                type="text"
-                placeholder="Search code or plan..."
-                className="form-input"
-                style={{ paddingLeft: '30px', fontSize: '0.825rem' }}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <select
-              className="form-select"
-              style={{ width: '130px', fontSize: '0.825rem' }}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">All Status</option>
-              <option value="available">Available</option>
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="used">Used</option>
-            </select>
+          {/* Search Bar */}
+          <div style={{ position: 'relative', width: '220px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-dim)' }} />
+            <input
+              type="text"
+              placeholder={`Search in ${activeSection}...`}
+              className="form-input"
+              style={{ paddingLeft: '30px', fontSize: '0.825rem' }}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
 
-        {/* Table Content */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
-                <th style={{ padding: '10px 14px' }}>Code</th>
-                <th style={{ padding: '10px 14px' }}>Plan</th>
-                <th style={{ padding: '10px 14px' }}>Price</th>
-                <th style={{ padding: '10px 14px' }}>Speed</th>
-                <th style={{ padding: '10px 14px' }}>Status</th>
-                <th style={{ padding: '10px 14px' }}>Time Left / Validity</th>
-                <th style={{ padding: '10px 14px' }}>Created</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVouchers.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
-                    No vouchers found. Click "Generate Batch" above to create codes.
-                  </td>
+        {/* Section 1: Active Sessions */}
+        {activeSection === 'active' && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                  <th style={{ padding: '10px 14px' }}>Voucher Code</th>
+                  <th style={{ padding: '10px 14px' }}>Plan</th>
+                  <th style={{ padding: '10px 14px' }}>Speed</th>
+                  <th style={{ padding: '10px 14px' }}>Time Remaining (Live)</th>
+                  <th style={{ padding: '10px 14px' }}>Activated At</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
                 </tr>
-              ) : (
-                filteredVouchers.map((v) => {
-                  const expiryInfo = getVoucherExpiryInfo(v);
-                  const isCurrentActive = v.status === 'active' && !expiryInfo.isExpired;
+              </thead>
+              <tbody>
+                {displayedList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
+                      No active sessions running right now. When customers redeem vouchers, they will appear here live.
+                    </td>
+                  </tr>
+                ) : (
+                  displayedList.map((v) => {
+                    const expiry = getVoucherExpiryInfo(v);
+                    return (
+                      <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span className="font-mono" style={{ fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.04em' }}>
+                            {v.code}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                          {v.plan?.name || 'General Access'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                          {v.plan?.download_speed_mbps || 15} Mbps
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                            <Clock size={13} />
+                            <span>{expiry.remainingText}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
+                          {v.activated_at ? new Date(v.activated_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Just now'}
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(v.code)}
+                              className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              title="Copy Code"
+                            >
+                              {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
+                              <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
+                            </button>
 
-                  return (
+                            <button
+                              type="button"
+                              onClick={() => handleTerminateSession(v.id, v.code)}
+                              className="btn btn-danger"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              title="End Session Immediately"
+                            >
+                              <PowerOff size={13} />
+                              <span>End Session</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Section 2: Unused / Available Vouchers */}
+        {activeSection === 'unused' && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                  <th style={{ padding: '10px 14px' }}>Voucher Code</th>
+                  <th style={{ padding: '10px 14px' }}>Plan</th>
+                  <th style={{ padding: '10px 14px' }}>Price</th>
+                  <th style={{ padding: '10px 14px' }}>Speed</th>
+                  <th style={{ padding: '10px 14px' }}>Validity Duration</th>
+                  <th style={{ padding: '10px 14px' }}>Created Date</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedList.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
+                      No unused vouchers available. Generate a batch above to create inventory!
+                    </td>
+                  </tr>
+                ) : (
+                  displayedList.map((v) => (
                     <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '10px 14px' }}>
                         <span className="font-mono" style={{ fontWeight: 600, color: 'var(--text-main)', letterSpacing: '0.04em' }}>
@@ -543,27 +691,90 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
                         {v.plan?.download_speed_mbps || 15} Mbps
                       </td>
                       <td style={{ padding: '10px 14px' }}>
-                        <span className={`badge ${expiryInfo.badgeClass}`}>
-                          {v.status === 'active' && expiryInfo.isExpired ? 'EXPIRED' : v.status}
+                        <span className="badge badge-emerald">
+                          {Math.round((v.plan?.duration_minutes || 60) / 60)}h Once Activated
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px' }}>
-                        {isCurrentActive ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--primary)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.825rem' }}>
-                            <Clock size={13} />
-                            <span>{expiryInfo.remainingText}</span>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-                            {expiryInfo.remainingText}
-                          </span>
-                        )}
-                      </td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
-                        {new Date(v.created_at).toLocaleDateString()} {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(v.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(v.code)}
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                          title="Copy Code"
+                        >
+                          {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
+                          <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Section 3: Voucher History (Expired & Used) */}
+        {activeSection === 'history' && (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                  <th style={{ padding: '10px 14px' }}>Voucher Code</th>
+                  <th style={{ padding: '10px 14px' }}>Plan</th>
+                  <th style={{ padding: '10px 14px' }}>Price</th>
+                  <th style={{ padding: '10px 14px' }}>Status</th>
+                  <th style={{ padding: '10px 14px' }}>Activated At</th>
+                  <th style={{ padding: '10px 14px' }}>Expired / Ended At</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedList.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
+                      No expired or finished vouchers in history yet.
+                    </td>
+                  </tr>
+                ) : (
+                  displayedList.map((v) => {
+                    const activatedStr = v.activated_at 
+                      ? new Date(v.activated_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                      : new Date(v.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                    
+                    const expiredStr = v.expires_at 
+                      ? new Date(v.expires_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                      : 'Expired';
+
+                    return (
+                      <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: 0.85 }}>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span className="font-mono" style={{ color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                            {v.code}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                          {v.plan?.name || 'General Access'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-dim)' }}>
+                          {currencySymbol}{v.plan?.price ?? 10}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span className="badge badge-rose">
+                            EXPIRED
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
+                          {activatedStr}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
+                          {expiredStr}
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                           <button
                             type="button"
                             onClick={() => copyToClipboard(v.code)}
@@ -574,28 +785,15 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
                             {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
                             <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
                           </button>
-
-                          {isCurrentActive && (
-                            <button
-                              type="button"
-                              onClick={() => handleTerminateSession(v.id, v.code)}
-                              className="btn btn-danger"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                              title="End Session Immediately"
-                            >
-                              <PowerOff size={13} />
-                              <span>End</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

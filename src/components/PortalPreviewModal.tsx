@@ -92,6 +92,11 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
     const cleanCode = voucherCode.trim().toUpperCase();
     if (!cleanCode) return;
 
+    if (sessionSuccess && new Date(sessionSuccess.expiresAt).getTime() > Date.now()) {
+      setErrorMsg(`This device already has an active session for voucher ${sessionSuccess.voucherCode}. Please wait until it finishes before using another voucher.`);
+      return;
+    }
+
     setVerifying(true);
     setErrorMsg(null);
 
