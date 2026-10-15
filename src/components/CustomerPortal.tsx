@@ -213,6 +213,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   const handleDisconnect = async () => {
     if (sessionSuccess?.voucherId) {
       try {
+        // Mark the voucher as 'used' in Supabase so it immediately moves to Voucher History in the admin dashboard
+        await supabase
+          .from('vouchers')
+          .update({ status: 'used' })
+          .eq('id', sessionSuccess.voucherId);
+
+        // Mark active session as disconnected
         await supabase
           .from('active_sessions')
           .update({ status: 'disconnected', last_seen_at: new Date().toISOString() })

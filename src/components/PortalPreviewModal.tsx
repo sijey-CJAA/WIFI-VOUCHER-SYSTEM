@@ -158,7 +158,24 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    if (sessionSuccess?.voucherId) {
+      try {
+        await supabase
+          .from('vouchers')
+          .update({ status: 'used' })
+          .eq('id', sessionSuccess.voucherId);
+
+        await supabase
+          .from('active_sessions')
+          .update({ status: 'disconnected', last_seen_at: new Date().toISOString() })
+          .eq('voucher_id', sessionSuccess.voucherId)
+          .eq('status', 'online');
+      } catch (err) {
+        console.warn('Disconnect logging error in preview:', err);
+      }
+    }
+
     localStorage.removeItem(PREVIEW_STORAGE_KEY);
     setSessionSuccess(null);
     setVoucherCode('');

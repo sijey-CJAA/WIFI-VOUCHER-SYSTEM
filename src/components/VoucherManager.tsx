@@ -138,6 +138,18 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
   useEffect(() => {
     loadData();
+
+    // Listen to real-time voucher updates (e.g. customer activates or disconnects)
+    const channel = supabase
+      .channel('vouchers_realtime_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vouchers' }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // 1-Second live ticking interval for active voucher countdowns
@@ -827,8 +839,8 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
                           {currencySymbol}{v.plan?.price ?? 10}
                         </td>
                         <td style={{ padding: '10px 14px' }}>
-                          <span className="badge badge-rose">
-                            EXPIRED
+                          <span className={`badge ${v.status === 'used' ? 'badge-amber' : 'badge-rose'}`}>
+                            {v.status === 'used' ? 'USED' : 'EXPIRED'}
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
