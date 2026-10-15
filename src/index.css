@@ -288,6 +288,18 @@ code, .font-mono {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.badge-rose {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+[data-theme="dark"] .badge-rose {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* Static clean status dot */
 .pulse-dot {
   width: 8px;

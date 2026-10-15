@@ -9,9 +9,10 @@ import {
   Clock, 
   Copy, 
   Check, 
-  RefreshCw,
-  Tag,
-  Layers
+  RefreshCw, 
+  Tag, 
+  Layers,
+  PowerOff
 } from 'lucide-react';
 
 interface VoucherManagerProps {
@@ -30,8 +31,45 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [, setTick] = useState<number>(Date.now());
 
-  // Fetch plans and vouchers
+  // Helper to calculate expiration & live remaining time
+  const getVoucherExpiryInfo = (v: any) => {
+    if (v.status === 'expired') {
+      return { isExpired: true, remainingText: 'Expired', badgeClass: 'badge-rose' };
+    }
+    if (v.status === 'used' || v.status === 'disabled') {
+      return { isExpired: true, remainingText: v.status.toUpperCase(), badgeClass: 'badge-amber' };
+    }
+    if (v.status === 'available') {
+      const mins = v.plan?.duration_minutes || 60;
+      return { 
+        isExpired: false, 
+        remainingText: `${mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`} (Unused)`, 
+        badgeClass: 'badge-emerald' 
+      };
+    }
+
+    // Active voucher: calculate actual remaining time
+    const activatedTime = v.activated_at ? new Date(v.activated_at).getTime() : new Date(v.created_at).getTime();
+    const durationMs = (v.plan?.duration_minutes || 60) * 60 * 1000;
+    const expiryTime = v.expires_at ? new Date(v.expires_at).getTime() : (activatedTime + durationMs);
+    const diffMs = expiryTime - Date.now();
+
+    if (diffMs <= 0) {
+      return { isExpired: true, remainingText: 'Expired', badgeClass: 'badge-rose' };
+    }
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const formatted = `${hours > 0 ? `${hours}h ` : ''}${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+
+    return { isExpired: false, remainingText: formatted, badgeClass: 'badge-blue' };
+  };
+
+  // Fetch plans and vouchers and auto-expire outdated vouchers
   const loadData = async () => {
     setLoading(true);
     try {
@@ -48,7 +86,40 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
       }
 
       if (vouchersRes.data) {
-        setVouchers(vouchersRes.data as any);
+        const loaded = vouchersRes.data as any[];
+        const outdatedIds: string[] = [];
+
+        // Check if any active vouchers are already past their expiration
+        const processed = loaded.map((v) => {
+          if (v.status === 'active') {
+            const activatedTime = v.activated_at ? new Date(v.activated_at).getTime() : new Date(v.created_at).getTime();
+            const durationMs = (v.plan?.duration_minutes || 60) * 60 * 1000;
+            const expiryTime = v.expires_at ? new Date(v.expires_at).getTime() : (activatedTime + durationMs);
+            if (Date.now() >= expiryTime) {
+              outdatedIds.push(v.id);
+              return { ...v, status: 'expired' };
+            }
+          }
+          return v;
+        });
+
+        setVouchers(processed);
+
+        // Auto-update outdated vouchers in Supabase so "when it ends, it ends literally"
+        if (outdatedIds.length > 0) {
+          try {
+            await supabase.from('vouchers').update({ status: 'expired' }).in('id', outdatedIds);
+            await supabase.from('active_sessions').update({ 
+              status: 'disconnected', 
+              last_seen_at: new Date().toISOString() 
+            }).in('voucher_id', outdatedIds);
+            
+            setStatusMsg(`Auto-expired ${outdatedIds.length} overdue active voucher(s).`);
+            setTimeout(() => setStatusMsg(null), 4000);
+          } catch (updateErr) {
+            console.warn('Auto-expire sync error:', updateErr);
+          }
+        }
       }
     } catch (err: any) {
       console.error('Failed to load voucher data:', err);
@@ -60,6 +131,66 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
   useEffect(() => {
     loadData();
   }, []);
+
+  // 1-Second live ticking interval for active voucher countdowns
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(Date.now());
+
+      // Check if any active voucher has just reached expiration
+      setVouchers((prev) => {
+        let hasChanges = false;
+        const newlyExpiredIds: string[] = [];
+
+        const updated = prev.map((v: any) => {
+          if (v.status === 'active') {
+            const activatedTime = v.activated_at ? new Date(v.activated_at).getTime() : new Date(v.created_at).getTime();
+            const durationMs = (v.plan?.duration_minutes || 60) * 60 * 1000;
+            const expiryTime = v.expires_at ? new Date(v.expires_at).getTime() : (activatedTime + durationMs);
+            if (Date.now() >= expiryTime) {
+              hasChanges = true;
+              newlyExpiredIds.push(v.id);
+              return { ...v, status: 'expired' };
+            }
+          }
+          return v;
+        });
+
+        if (hasChanges && newlyExpiredIds.length > 0) {
+          supabase.from('vouchers').update({ status: 'expired' }).in('id', newlyExpiredIds).then(() => {
+            supabase.from('active_sessions').update({ 
+              status: 'disconnected', 
+              last_seen_at: new Date().toISOString() 
+            }).in('voucher_id', newlyExpiredIds);
+          });
+          setStatusMsg(`${newlyExpiredIds.length} voucher session(s) expired.`);
+          setTimeout(() => setStatusMsg(null), 3500);
+        }
+
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manually end an active session on demand
+  const handleTerminateSession = async (voucherId: string, code: string) => {
+    try {
+      await supabase.from('vouchers').update({ status: 'expired' }).eq('id', voucherId);
+      await supabase.from('active_sessions').update({ 
+        status: 'disconnected', 
+        last_seen_at: new Date().toISOString() 
+      }).eq('voucher_id', voucherId);
+
+      setVouchers((prev) => prev.map((v) => v.id === voucherId ? { ...v, status: 'expired' } : v));
+      setStatusMsg(`Ended session for voucher ${code}.`);
+      setTimeout(() => setStatusMsg(null), 3500);
+    } catch (err: any) {
+      console.error('Error terminating voucher:', err);
+      setStatusMsg(`Failed to end session: ${err.message}`);
+    }
+  };
 
   // Generate random voucher codes
   const generateVoucherCodes = async () => {
@@ -145,7 +276,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Issue access tokens, manage rate plans, and export codes for guest customers.
+            Issue access tokens, manage rate plans, monitor live session timers, and terminate expired vouchers.
           </p>
         </div>
 
@@ -157,7 +288,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
             disabled={loading}
           >
             <RefreshCw size={15} />
-            <span>Refresh</span>
+            <span>Refresh & Sync</span>
           </button>
 
           <button
@@ -362,6 +493,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
               <option value="all">All Status</option>
               <option value="available">Available</option>
               <option value="active">Active</option>
+              <option value="expired">Expired</option>
               <option value="used">Used</option>
             </select>
           </div>
@@ -377,56 +509,89 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
                 <th style={{ padding: '10px 14px' }}>Price</th>
                 <th style={{ padding: '10px 14px' }}>Speed</th>
                 <th style={{ padding: '10px 14px' }}>Status</th>
+                <th style={{ padding: '10px 14px' }}>Time Left / Validity</th>
                 <th style={{ padding: '10px 14px' }}>Created</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredVouchers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
                     No vouchers found. Click "Generate Batch" above to create codes.
                   </td>
                 </tr>
               ) : (
-                filteredVouchers.map((v) => (
-                  <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span className="font-mono" style={{ fontWeight: 600, color: 'var(--text-main)', letterSpacing: '0.04em' }}>
-                        {v.code}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
-                      {v.plan?.name || 'General Access'}
-                    </td>
-                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-main)' }}>
-                      {currencySymbol}{v.plan?.price ?? 10}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-                      {v.plan?.download_speed_mbps || 15} Mbps
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span className={`badge ${v.status === 'available' ? 'badge-emerald' : v.status === 'active' ? 'badge-blue' : 'badge-amber'}`}>
-                        {v.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
-                      {new Date(v.created_at).toLocaleDateString()} {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(v.code)}
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                        title="Copy Code"
-                      >
-                        {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
-                        <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredVouchers.map((v) => {
+                  const expiryInfo = getVoucherExpiryInfo(v);
+                  const isCurrentActive = v.status === 'active' && !expiryInfo.isExpired;
+
+                  return (
+                    <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span className="font-mono" style={{ fontWeight: 600, color: 'var(--text-main)', letterSpacing: '0.04em' }}>
+                          {v.code}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                        {v.plan?.name || 'General Access'}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {currencySymbol}{v.plan?.price ?? 10}
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                        {v.plan?.download_speed_mbps || 15} Mbps
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span className={`badge ${expiryInfo.badgeClass}`}>
+                          {v.status === 'active' && expiryInfo.isExpired ? 'EXPIRED' : v.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        {isCurrentActive ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--primary)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.825rem' }}>
+                            <Clock size={13} />
+                            <span>{expiryInfo.remainingText}</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                            {expiryInfo.remainingText}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
+                        {new Date(v.created_at).toLocaleDateString()} {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(v.code)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                            title="Copy Code"
+                          >
+                            {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
+                            <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
+                          </button>
+
+                          {isCurrentActive && (
+                            <button
+                              type="button"
+                              onClick={() => handleTerminateSession(v.id, v.code)}
+                              className="btn btn-danger"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              title="End Session Immediately"
+                            >
+                              <PowerOff size={13} />
+                              <span>End</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
