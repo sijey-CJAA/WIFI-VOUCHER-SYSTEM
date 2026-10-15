@@ -17,7 +17,6 @@ import {
   Phone
 } from 'lucide-react';
 
-
 interface WifiSetupProps {
   onSsidUpdated: (newSsid: string) => void;
   onOpenScriptModal: () => void;
@@ -33,7 +32,7 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
     ssid_name: 'VOUCHER-WIFI-5G',
     portal_title: 'High-Speed Guest WiFi',
     portal_subtitle: 'Enter your voucher code to connect instantly',
-    brand_color: '#3b82f6',
+    brand_color: '#2563eb',
     gateway_ip: '192.168.88.1',
     router_type: 'mikrotik',
     dns_primary: '1.1.1.1',
@@ -96,7 +95,6 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
     setStatusMessage(null);
 
     try {
-      // If we have an id, update; otherwise insert
       let result;
       if (settings.id) {
         result = await supabase
@@ -135,14 +133,14 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
       onSsidUpdated(settings.ssid_name);
       setStatusMessage({
         type: 'success',
-        text: 'WiFi Hotspot configuration successfully saved to Supabase!',
+        text: 'WiFi Hotspot configuration saved successfully.',
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
       console.error('Save error:', err);
       setStatusMessage({
         type: 'error',
-        text: err.message || 'Failed to save WiFi settings to database.',
+        text: err.message || 'Failed to save WiFi settings.',
       });
     } finally {
       setSaving(false);
@@ -154,47 +152,50 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
     setTimeout(() => {
       setPingStatus({
         testing: false,
-        result: `Gateway ${settings.gateway_ip} is REACHABLE • Latency: 1.4ms • Packet Loss: 0%`,
+        result: `Gateway ${settings.gateway_ip} is reachable (1.4ms latency, 0% packet loss)`,
       });
-    }, 1200);
+    }, 1000);
   };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px' }}>
       {/* Page Header */}
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '20px',
-        marginBottom: '32px',
+        gap: '16px',
+        marginBottom: '24px',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <div style={{
-              padding: '8px',
-              borderRadius: '10px',
-              background: 'rgba(37, 99, 235, 0.15)',
-              color: '#3b82f6',
+              padding: '6px',
+              borderRadius: '6px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--primary)',
             }}>
-              <Wifi size={24} />
+              <Wifi size={20} />
             </div>
-            <h1 style={{ fontSize: '1.85rem', margin: 0 }}>WiFi Hotspot & Router Configuration</h1>
+            <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-main)' }}>
+              WiFi Hotspot Configuration
+            </h1>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-            Configure your wireless SSID, captive portal branding, gateway hardware, and bandwidth rules synchronized with Supabase.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Configure SSID, captive portal branding, router gateway, and default bandwidth limits.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={fetchSettings}
             disabled={loading}
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={15} />
             <span>Reload</span>
           </button>
 
@@ -203,16 +204,16 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
             className="btn btn-secondary"
             onClick={onOpenScriptModal}
           >
-            <Terminal size={16} color="#06b6d4" />
+            <Terminal size={15} />
             <span>Router CLI Script</span>
           </button>
 
           <button
             type="button"
-            className="btn btn-emerald"
+            className="btn btn-primary"
             onClick={onOpenPortalPreview}
           >
-            <Smartphone size={16} />
+            <Smartphone size={15} />
             <span>Preview Captive Portal</span>
           </button>
         </div>
@@ -223,16 +224,17 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          padding: '14px 18px',
-          borderRadius: '12px',
-          marginBottom: '24px',
-          background: statusMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-          border: `1px solid ${statusMessage.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
-          color: statusMessage.type === 'success' ? '#34d399' : '#fb7185',
+          gap: '10px',
+          padding: '12px 16px',
+          borderRadius: '6px',
+          marginBottom: '20px',
+          background: statusMessage.type === 'success' ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${statusMessage.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          color: statusMessage.type === 'success' ? '#15803d' : '#b91c1c',
+          fontSize: '0.875rem',
         }}>
-          {statusMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          <span style={{ fontWeight: 500 }}>{statusMessage.text}</span>
+          {statusMessage.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          <span>{statusMessage.text}</span>
         </div>
       )}
 
@@ -241,27 +243,29 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '24px',
+          gap: '20px',
           alignItems: 'start',
         }}>
           {/* Section 1: Wireless Network & Captive Portal Branding */}
-          <div className="glass-panel" style={{ padding: '28px' }}>
+          <div className="plain-card" style={{ padding: '24px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              paddingBottom: '16px',
-              marginBottom: '20px',
+              gap: '8px',
+              paddingBottom: '14px',
+              marginBottom: '18px',
               borderBottom: '1px solid var(--border-color)',
             }}>
-              <Radio size={20} color="#3b82f6" />
-              <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Wireless & Portal Branding</h2>
+              <Radio size={18} color="var(--primary)" />
+              <h2 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>
+                Wireless & Portal Branding
+              </h2>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label" htmlFor="ssidName">
-                  <span>SSID / Network Broadcast Name</span>
+                  <span>SSID / Broadcast Name</span>
                   <span className="badge badge-blue">Broadcasting</span>
                 </label>
                 <input
@@ -269,13 +273,13 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                   type="text"
                   required
                   className="form-input font-mono"
-                  style={{ fontWeight: 600, fontSize: '1.05rem', color: '#60a5fa' }}
+                  style={{ fontWeight: 600, fontSize: '0.95rem' }}
                   value={settings.ssid_name}
                   onChange={(e) => handleInputChange('ssid_name', e.target.value)}
                   placeholder="e.g. MY-HOTSPOT-5G"
                 />
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-                  The wireless name clients will see and connect to on their phones/laptops.
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                  The wireless name clients will see and connect to on their devices.
                 </span>
               </div>
 
@@ -304,21 +308,21 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="brandColor">Portal Accent Color</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       id="brandColor"
                       type="color"
                       value={settings.brand_color}
                       onChange={(e) => handleInputChange('brand_color', e.target.value)}
                       style={{
-                        width: '42px',
-                        height: '42px',
+                        width: '38px',
+                        height: '38px',
                         padding: 0,
-                        border: 'none',
-                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
                         cursor: 'pointer',
                         background: 'transparent',
                       }}
@@ -335,7 +339,7 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                 <div className="form-group">
                   <label className="form-label" htmlFor="currencySymbol">
                     <span>Currency Symbol</span>
-                    <Coins size={14} color="#fbbf24" />
+                    <Coins size={14} color="var(--text-dim)" />
                   </label>
                   <input
                     id="currencySymbol"
@@ -350,8 +354,8 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
 
               <div className="form-group">
                 <label className="form-label" htmlFor="supportPhone">
-                  <span>Customer Support Hotline</span>
-                  <Phone size={14} color="#34d399" />
+                  <span>Customer Support Phone</span>
+                  <Phone size={14} color="var(--text-dim)" />
                 </label>
                 <input
                   id="supportPhone"
@@ -378,20 +382,22 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
           </div>
 
           {/* Section 2: Router Hardware & Gateway Integration */}
-          <div className="glass-panel" style={{ padding: '28px' }}>
+          <div className="plain-card" style={{ padding: '24px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              paddingBottom: '16px',
-              marginBottom: '20px',
+              gap: '8px',
+              paddingBottom: '14px',
+              marginBottom: '18px',
               borderBottom: '1px solid var(--border-color)',
             }}>
-              <Server size={20} color="#06b6d4" />
-              <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Gateway & Router Hardware</h2>
+              <Server size={18} color="var(--primary)" />
+              <h2 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>
+                Gateway & Router Hardware
+              </h2>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label" htmlFor="routerType">Router Operating System</label>
                 <select
@@ -418,7 +424,7 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#06b6d4',
+                      color: 'var(--primary)',
                       fontSize: '0.78rem',
                       cursor: 'pointer',
                       display: 'flex',
@@ -444,17 +450,17 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                     marginTop: '6px',
                     fontSize: '0.78rem',
                     padding: '6px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    color: '#34d399',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    borderRadius: '4px',
+                    background: '#f0fdf4',
+                    color: '#15803d',
+                    border: '1px solid #bbf7d0',
                   }}>
                     {pingStatus.result}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="dnsPrimary">Primary DNS</label>
                   <input
@@ -482,18 +488,20 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
 
               {/* Bandwidth Limits */}
               <div style={{
-                padding: '16px',
-                background: 'rgba(0, 0, 0, 0.25)',
-                borderRadius: '12px',
+                padding: '14px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '6px',
                 border: '1px solid var(--border-color)',
                 marginTop: '4px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                  <Gauge size={16} color="#fbbf24" />
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Default Bandwidth Queues</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                  <Gauge size={15} color="var(--text-muted)" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                    Default Bandwidth Queues
+                  </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
                     <label className="form-label" htmlFor="bandwidthDown">Max Download (Mbps)</label>
                     <input
@@ -523,11 +531,11 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
               </div>
 
               {/* Timeouts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="sessionTimeout">
                     <span>Session Max (min)</span>
-                    <Clock size={13} color="var(--text-dim)" />
+                    <Clock size={12} color="var(--text-dim)" />
                   </label>
                   <input
                     id="sessionTimeout"
@@ -542,7 +550,7 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
                 <div className="form-group">
                   <label className="form-label" htmlFor="idleTimeout">
                     <span>Idle Timeout (min)</span>
-                    <Clock size={13} color="var(--text-dim)" />
+                    <Clock size={12} color="var(--text-dim)" />
                   </label>
                   <input
                     id="idleTimeout"
@@ -559,45 +567,41 @@ export const WifiSetup: React.FC<WifiSetupProps> = ({
         </div>
 
         {/* Save Bar */}
-        <div style={{
-          marginTop: '28px',
-          padding: '20px 24px',
-          borderRadius: '16px',
-          background: 'rgba(18, 24, 38, 0.9)',
-          border: '1px solid var(--border-color)',
+        <div className="plain-card" style={{
+          marginTop: '20px',
+          padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '16px',
-          boxShadow: 'var(--shadow-card)',
+          gap: '14px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '10px',
-              height: '10px',
+              width: '8px',
+              height: '8px',
               borderRadius: '50%',
-              backgroundColor: settings.is_active ? '#10b981' : '#f43f5e',
+              backgroundColor: settings.is_active ? '#16a34a' : '#dc2626',
             }} />
             <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-                Status: {settings.is_active ? 'Hotspot Active & Ready' : 'Hotspot Disabled'}
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                Status: {settings.is_active ? 'Active & Ready' : 'Disabled'}
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-                Target Router: {settings.router_type.toUpperCase()} ({settings.gateway_ip})
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                Router: {settings.router_type.toUpperCase()} ({settings.gateway_ip})
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={saving}
-              style={{ padding: '12px 24px', fontSize: '0.95rem' }}
+              style={{ padding: '8px 20px' }}
             >
-              <Save size={18} />
-              <span>{saving ? 'Saving to Supabase...' : 'Save WiFi Configuration'}</span>
+              <Save size={16} />
+              <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
             </button>
           </div>
         </div>

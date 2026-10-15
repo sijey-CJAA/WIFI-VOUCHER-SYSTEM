@@ -10,10 +10,9 @@ import {
   Copy, 
   Check, 
   RefreshCw,
-  Zap,
-  Tag
+  Tag,
+  Layers
 } from 'lucide-react';
-
 
 interface VoucherManagerProps {
   currencySymbol: string;
@@ -90,7 +89,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
       if (data) {
         setVouchers((prev) => [...(data as any), ...prev]);
-        setStatusMsg(`Generated ${batchCount} new vouchers!`);
+        setStatusMsg(`Generated ${batchCount} new vouchers.`);
         setTimeout(() => setStatusMsg(null), 3500);
       }
     } catch (err: any) {
@@ -120,41 +119,44 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
   });
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px' }}>
       {/* Top Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '20px',
-        marginBottom: '28px',
+        gap: '16px',
+        marginBottom: '24px',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <div style={{
-              padding: '8px',
-              borderRadius: '10px',
-              background: 'rgba(6, 182, 212, 0.15)',
-              color: '#06b6d4',
+              padding: '6px',
+              borderRadius: '6px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--primary)',
             }}>
-              <Ticket size={24} />
+              <Ticket size={20} />
             </div>
-            <h1 style={{ fontSize: '1.85rem', margin: 0 }}>Voucher Management & Generator</h1>
+            <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-main)' }}>
+              Voucher Management
+            </h1>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-            Issue access tokens, manage pricing tiers, and print vouchers for clients.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Issue access tokens, manage rate plans, and export codes for guest customers.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={loadData}
             disabled={loading}
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={15} />
             <span>Refresh</span>
           </button>
 
@@ -163,7 +165,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
             className="btn btn-secondary"
             onClick={handlePrint}
           >
-            <Printer size={16} />
+            <Printer size={15} />
             <span>Print Vouchers</span>
           </button>
         </div>
@@ -171,96 +173,105 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
       {statusMsg && (
         <div style={{
-          padding: '12px 18px',
-          background: 'rgba(16, 185, 129, 0.15)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          borderRadius: '10px',
-          color: '#34d399',
-          marginBottom: '20px',
-          fontSize: '0.9rem',
+          padding: '10px 14px',
+          background: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          borderRadius: '6px',
+          color: '#15803d',
+          marginBottom: '18px',
+          fontSize: '0.85rem',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
         }}>
-          <CheckCircle size={18} />
+          <CheckCircle size={16} />
           <span>{statusMsg}</span>
         </div>
       )}
 
       {/* Plan Cards */}
-      <div style={{ marginBottom: '28px' }}>
-        <h3 style={{ fontSize: '1.1rem', marginBottom: '14px', color: '#e2e8f0' }}>Active Rate Plans</h3>
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '1rem', marginBottom: '12px', color: 'var(--text-main)' }}>
+          Rate Plans
+        </h3>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px',
+          gap: '14px',
         }}>
-          {plans.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => setSelectedPlanId(p.id)}
-              className="glass-panel"
-              style={{
-                padding: '20px',
-                cursor: 'pointer',
-                borderColor: selectedPlanId === p.id ? '#3b82f6' : 'var(--border-color)',
-                boxShadow: selectedPlanId === p.id ? '0 0 20px rgba(59, 130, 246, 0.25)' : 'var(--shadow-card)',
-                transition: 'all 0.2s',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <div>
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{p.name}</h4>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={12} />
-                    <span>{Math.round(p.duration_minutes / 60)} Hour{p.duration_minutes > 60 ? 's' : ''} Validity</span>
+          {plans.map((p) => {
+            const isSelected = selectedPlanId === p.id;
+            return (
+              <div
+                key={p.id}
+                onClick={() => setSelectedPlanId(p.id)}
+                className="plain-card"
+                style={{
+                  padding: '16px',
+                  cursor: 'pointer',
+                  borderColor: isSelected ? 'var(--primary)' : 'var(--border-color)',
+                  borderWidth: isSelected ? '2px' : '1px',
+                  backgroundColor: isSelected ? 'var(--bg-secondary)' : 'var(--bg-card)',
+                  transition: 'border-color 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '1rem', marginBottom: '2px', color: 'var(--text-main)' }}>
+                      {p.name}
+                    </h4>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={12} />
+                      <span>{Math.round(p.duration_minutes / 60)}h validity</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    color: 'var(--primary)',
+                    fontFamily: 'var(--font-mono)',
+                  }}>
+                    {currencySymbol}{p.price}
                   </div>
                 </div>
+
                 <div style={{
-                  fontSize: '1.35rem',
-                  fontWeight: 800,
-                  color: '#60a5fa',
-                  fontFamily: 'var(--font-mono)',
+                  display: 'flex',
+                  gap: '6px',
+                  fontSize: '0.75rem',
+                  paddingTop: '8px',
+                  borderTop: '1px solid var(--border-color)',
                 }}>
-                  {currencySymbol}{p.price}
+                  <span className="badge badge-blue">
+                    {p.download_speed_mbps}M / {p.upload_speed_mbps}M
+                  </span>
+                  <span className="badge badge-emerald">
+                    {p.max_devices} Device
+                  </span>
                 </div>
               </div>
-
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
-                paddingTop: '10px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-              }}>
-                <span className="badge badge-blue">
-                  {p.download_speed_mbps}M / {p.upload_speed_mbps}M
-                </span>
-                <span className="badge badge-emerald">
-                  {p.max_devices} Device
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Batch Generator Bar */}
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-          <Zap size={18} color="#fbbf24" />
-          <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Quick Batch Voucher Generator</h3>
+      <div className="plain-card" style={{ padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <Layers size={16} color="var(--primary)" />
+          <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>
+            Generate Voucher Batch
+          </h3>
         </div>
 
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr)) 160px',
-          gap: '16px',
+          gap: '14px',
           alignItems: 'end',
         }}>
           <div className="form-group">
-            <label className="form-label">Assign Plan</label>
+            <label className="form-label">Rate Plan</label>
             <select
               className="form-select"
               value={selectedPlanId}
@@ -275,7 +286,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
           </div>
 
           <div className="form-group">
-            <label className="form-label">Code Prefix</label>
+            <label className="form-label">Prefix</label>
             <input
               type="text"
               className="form-input font-mono"
@@ -286,7 +297,7 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
           </div>
 
           <div className="form-group">
-            <label className="form-label">Batch Quantity</label>
+            <label className="form-label">Quantity</label>
             <select
               className="form-select"
               value={batchCount}
@@ -304,37 +315,39 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
             className="btn btn-primary"
             onClick={generateVoucherCodes}
             disabled={generating || !selectedPlanId}
-            style={{ height: '42px' }}
+            style={{ height: '38px' }}
           >
-            <Plus size={16} />
+            <Plus size={15} />
             <span>{generating ? 'Generating...' : 'Generate Batch'}</span>
           </button>
         </div>
       </div>
 
       {/* Vouchers Table */}
-      <div className="glass-panel" style={{ padding: '24px' }}>
+      <div className="plain-card" style={{ padding: '20px' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '20px',
+          gap: '14px',
+          marginBottom: '16px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Tag size={18} color="#3b82f6" />
-            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Voucher Inventory ({filteredVouchers.length})</h3>
+            <Tag size={16} color="var(--primary)" />
+            <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-main)' }}>
+              Voucher Inventory ({filteredVouchers.length})
+            </h3>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', width: '220px' }}>
-              <Search size={15} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-dim)' }} />
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-dim)' }} />
               <input
                 type="text"
                 placeholder="Search code or plan..."
                 className="form-input"
-                style={{ paddingLeft: '32px', fontSize: '0.85rem' }}
+                style={{ paddingLeft: '30px', fontSize: '0.825rem' }}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -342,11 +355,11 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
             <select
               className="form-select"
-              style={{ width: '140px', fontSize: '0.85rem' }}
+              style={{ width: '130px', fontSize: '0.825rem' }}
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="all">All Statuses</option>
+              <option value="all">All Status</option>
               <option value="available">Available</option>
               <option value="active">Active</option>
               <option value="used">Used</option>
@@ -356,59 +369,59 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
         {/* Table Content */}
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-dim)' }}>
-                <th style={{ padding: '12px 16px' }}>Voucher Code</th>
-                <th style={{ padding: '12px 16px' }}>Plan</th>
-                <th style={{ padding: '12px 16px' }}>Price</th>
-                <th style={{ padding: '12px 16px' }}>Speed</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
-                <th style={{ padding: '12px 16px' }}>Created</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}>
+                <th style={{ padding: '10px 14px' }}>Code</th>
+                <th style={{ padding: '10px 14px' }}>Plan</th>
+                <th style={{ padding: '10px 14px' }}>Price</th>
+                <th style={{ padding: '10px 14px' }}>Speed</th>
+                <th style={{ padding: '10px 14px' }}>Status</th>
+                <th style={{ padding: '10px 14px' }}>Created</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredVouchers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
-                    No vouchers found. Click "Generate Batch" above to create vouchers!
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
+                    No vouchers found. Click "Generate Batch" above to create codes.
                   </td>
                 </tr>
               ) : (
                 filteredVouchers.map((v) => (
-                  <tr key={v.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className="font-mono" style={{ fontWeight: 700, color: '#f3f4f6', letterSpacing: '0.05em' }}>
+                  <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'var(--text-main)', letterSpacing: '0.04em' }}>
                         {v.code}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
                       {v.plan?.name || 'General Access'}
                     </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#60a5fa' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-main)' }}>
                       {currencySymbol}{v.plan?.price ?? 10}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
                       {v.plan?.download_speed_mbps || 15} Mbps
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={{ padding: '10px 14px' }}>
                       <span className={`badge ${v.status === 'available' ? 'badge-emerald' : v.status === 'active' ? 'badge-blue' : 'badge-amber'}`}>
                         {v.status}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
                       {new Date(v.created_at).toLocaleDateString()} {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(v.code)}
                         className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
                         title="Copy Code"
                       >
-                        {copiedCode === v.code ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                        {copiedCode === v.code ? <Check size={13} color="var(--accent-emerald)" /> : <Copy size={13} />}
                         <span>{copiedCode === v.code ? 'Copied' : 'Copy'}</span>
                       </button>
                     </td>

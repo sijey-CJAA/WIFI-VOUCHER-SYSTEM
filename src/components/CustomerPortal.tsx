@@ -24,7 +24,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     setErrorMsg(null);
 
     try {
-      // Query voucher directly from Supabase
       const { data: voucher, error } = await supabase
         .from('vouchers')
         .select('*, plan:voucher_plans(*)')
@@ -34,18 +33,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       if (error) throw error;
 
       if (!voucher) {
-        setErrorMsg('Invalid voucher code. Please check your ticket and try again.');
+        setErrorMsg('Invalid voucher code. Please check your voucher ticket and try again.');
         setVerifying(false);
         return;
       }
 
       if (voucher.status === 'used' || voucher.status === 'expired') {
-        setErrorMsg(`This voucher has already been ${voucher.status}. Please obtain a new code.`);
+        setErrorMsg(`This voucher has already been ${voucher.status}. Please use a valid voucher.`);
         setVerifying(false);
         return;
       }
 
-      // Mark voucher active if available
       if (voucher.status === 'available') {
         await supabase
           .from('vouchers')
@@ -83,11 +81,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       flexDirection: 'column',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '32px 20px',
-      background: 'radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.15) 0%, transparent 60%), #0a0d14',
+      padding: '24px 16px',
+      backgroundColor: 'var(--bg-primary)',
     }}>
       {/* Top Switcher to Admin */}
-      <div style={{ width: '100%', maxWidth: '440px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ width: '100%', maxWidth: '420px', display: 'flex', justifyContent: 'flex-end' }}>
         <button
           type="button"
           onClick={onSwitchToAdmin}
@@ -100,98 +98,99 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       </div>
 
       {/* Main Captive Portal Card */}
-      <div className="glass-panel" style={{
+      <div className="plain-card" style={{
         width: '100%',
-        maxWidth: '440px',
-        padding: '36px 28px',
+        maxWidth: '420px',
+        padding: '32px 24px',
         textAlign: 'center',
-        margin: '20px 0',
+        margin: '16px 0',
       }}>
         {/* Network Badge */}
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '8px',
-          padding: '6px 16px',
-          borderRadius: '999px',
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          fontSize: '0.82rem',
-          color: '#e2e8f0',
-          marginBottom: '20px',
+          gap: '6px',
+          padding: '4px 12px',
+          borderRadius: '6px',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          fontSize: '0.78rem',
+          color: 'var(--text-muted)',
+          marginBottom: '18px',
         }}>
-          <Wifi size={14} color={settings.brand_color || '#3b82f6'} />
-          <span>Connected to <strong>{settings.ssid_name || 'TEST WIFI'}</strong></span>
+          <Wifi size={13} color="var(--primary)" />
+          <span>Connected to <strong>{settings.ssid_name || 'GUEST WIFI'}</strong></span>
         </div>
 
         {/* Brand Icon */}
         <div style={{
-          width: '72px',
-          height: '72px',
-          borderRadius: '20px',
-          background: `linear-gradient(135deg, ${settings.brand_color || '#3b82f6'} 0%, #06b6d4 100%)`,
-          margin: '0 auto 18px',
+          width: '52px',
+          height: '52px',
+          borderRadius: '8px',
+          background: settings.brand_color || 'var(--primary)',
+          margin: '0 auto 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: `0 10px 28px ${settings.brand_color}55`,
+          color: '#ffffff',
         }}>
-          <Wifi size={36} color="#ffffff" />
+          <Wifi size={28} />
         </div>
 
-        <h1 style={{ fontSize: '1.6rem', color: '#ffffff', marginBottom: '8px', lineHeight: 1.2 }}>
-          {settings.portal_title || 'High-Speed Guest WiFi'}
+        <h1 style={{ fontSize: '1.4rem', color: 'var(--text-main)', marginBottom: '6px' }}>
+          {settings.portal_title || 'Guest WiFi Access'}
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '28px', lineHeight: 1.4 }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.4 }}>
           {settings.portal_subtitle || 'Enter your voucher code to connect instantly'}
         </p>
 
         {sessionSuccess ? (
           /* Connected Success View */
           <div style={{
-            padding: '24px 20px',
-            borderRadius: '16px',
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            padding: '20px',
+            borderRadius: '8px',
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
             textAlign: 'center',
           }}>
             <div style={{
-              width: '56px',
-              height: '56px',
+              width: '44px',
+              height: '44px',
               borderRadius: '50%',
-              background: '#10b981',
+              background: '#16a34a',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 14px',
+              margin: '0 auto 10px',
             }}>
-              <CheckCircle2 size={32} />
+              <CheckCircle2 size={24} />
             </div>
-            <h2 style={{ fontSize: '1.3rem', color: '#34d399', marginBottom: '8px' }}>
-              Internet Connected!
+            <h2 style={{ fontSize: '1.15rem', color: '#15803d', marginBottom: '6px' }}>
+              Connected to Internet
             </h2>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
-              Plan: <strong>{sessionSuccess.planName}</strong>
+            <p style={{ fontSize: '0.85rem', color: '#166534', marginBottom: '14px' }}>
+              Active Plan: <strong>{sessionSuccess.planName}</strong>
             </p>
 
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              background: 'rgba(0,0,0,0.3)',
-              padding: '14px',
-              borderRadius: '12px',
-              fontSize: '0.85rem',
-              marginBottom: '20px',
+              gap: '10px',
+              background: '#ffffff',
+              border: '1px solid #dcfce7',
+              padding: '10px',
+              borderRadius: '6px',
+              fontSize: '0.825rem',
+              marginBottom: '16px',
             }}>
               <div>
-                <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.78rem' }}>Speed</span>
-                <strong style={{ color: '#fff' }}>{sessionSuccess.speed}</strong>
+                <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>Speed</span>
+                <strong style={{ color: 'var(--text-main)' }}>{sessionSuccess.speed}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.78rem' }}>Duration</span>
-                <strong style={{ color: '#fff' }}>{sessionSuccess.durationMinutes} Mins</strong>
+                <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.75rem' }}>Duration</span>
+                <strong style={{ color: 'var(--text-main)' }}>{sessionSuccess.durationMinutes} Mins</strong>
               </div>
             </div>
 
@@ -199,34 +198,34 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               type="button"
               onClick={handleDisconnect}
               className="btn btn-secondary"
-              style={{ width: '100%', fontSize: '0.85rem', padding: '10px' }}
+              style={{ width: '100%', fontSize: '0.825rem', padding: '8px' }}
             >
               Disconnect Session
             </button>
           </div>
         ) : (
           /* Voucher Input Form */
-          <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {errorMsg && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                padding: '12px 14px',
-                background: 'rgba(244, 63, 94, 0.15)',
-                border: '1px solid rgba(244, 63, 94, 0.3)',
-                borderRadius: '10px',
-                color: '#fb7185',
-                fontSize: '0.85rem',
+                gap: '8px',
+                padding: '10px 12px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '6px',
+                color: '#b91c1c',
+                fontSize: '0.825rem',
                 textAlign: 'left',
               }}>
-                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <div style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '14px', top: '15px', color: 'var(--text-dim)' }} />
+              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-dim)' }} />
               <input
                 type="text"
                 required
@@ -235,13 +234,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                 onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                 className="form-input font-mono"
                 style={{
-                  paddingLeft: '42px',
+                  paddingLeft: '36px',
                   textAlign: 'center',
-                  letterSpacing: '0.08em',
-                  fontWeight: 700,
-                  fontSize: '1.05rem',
+                  letterSpacing: '0.06em',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
                   textTransform: 'uppercase',
-                  height: '48px',
+                  height: '42px',
                 }}
               />
             </div>
@@ -252,17 +251,16 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               className="btn btn-primary"
               style={{
                 width: '100%',
-                padding: '14px',
-                fontSize: '1rem',
-                background: `linear-gradient(135deg, ${settings.brand_color || '#2563eb'} 0%, #1d4ed8 100%)`,
+                padding: '10px',
+                fontSize: '0.9rem',
               }}
             >
               {verifying ? (
-                <span>Verifying with Database...</span>
+                <span>Verifying voucher...</span>
               ) : (
                 <>
                   <span>Connect to Internet</span>
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -275,17 +273,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         textAlign: 'center',
         fontSize: '0.78rem',
         color: 'var(--text-dim)',
-        maxWidth: '440px',
+        maxWidth: '420px',
         padding: '0 10px',
       }}>
         {settings.support_phone && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}>
-            <Phone size={13} color="#34d399" />
-            <span>Customer Assistance: <strong>{settings.support_phone}</strong></span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '6px' }}>
+            <Phone size={13} color="var(--primary)" />
+            <span>Support: <strong>{settings.support_phone}</strong></span>
           </div>
         )}
         <p style={{ lineHeight: 1.4 }}>
-          {settings.terms_notice || 'By connecting, you agree to fair use and terms of acceptable service.'}
+          {settings.terms_notice || 'By connecting, you agree to fair use and terms of service.'}
         </p>
       </div>
     </div>

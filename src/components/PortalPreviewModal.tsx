@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Wifi, X, ArrowRight, CheckCircle2, AlertCircle, Phone, Lock } from 'lucide-react';
 import { supabase, type WifiSettings } from '../lib/supabase';
 
-
 interface PortalPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,7 +18,6 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sessionSuccess, setSessionSuccess] = useState<any | null>(null);
 
-  // Close on Escape key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -38,7 +36,6 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
     setErrorMsg(null);
 
     try {
-      // Query voucher directly from Supabase
       const { data: voucher, error } = await supabase
         .from('vouchers')
         .select('*, plan:voucher_plans(*)')
@@ -54,12 +51,11 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
       }
 
       if (voucher.status === 'used' || voucher.status === 'expired') {
-        setErrorMsg(`This voucher has already been ${voucher.status}. Please obtain a new code.`);
+        setErrorMsg(`This voucher has already been ${voucher.status}.`);
         setVerifying(false);
         return;
       }
 
-      // Mark voucher active if available
       if (voucher.status === 'available') {
         await supabase
           .from('vouchers')
@@ -96,8 +92,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(5, 8, 15, 0.85)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -119,64 +114,62 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
           width: '100%',
           display: 'flex',
           justifyContent: 'flex-end',
-          marginBottom: '10px',
+          marginBottom: '8px',
         }}>
           <button
             type="button"
             onClick={onClose}
             className="btn btn-secondary"
             style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
+              padding: '6px 12px',
+              fontSize: '0.8rem',
             }}
           >
-            <X size={16} />
+            <X size={15} />
             <span>Close Preview</span>
           </button>
         </div>
 
-
-        {/* Realistic Mobile Device Frame */}
+        {/* Clean Mobile Device Frame */}
         <div style={{
-          width: '380px',
-          height: '740px',
-          borderRadius: '44px',
-          background: '#090d16',
-          border: '10px solid #1e293b',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(255, 255, 255, 0.08)',
+          width: '360px',
+          height: '700px',
+          borderRadius: '32px',
+          background: 'var(--bg-primary)',
+          border: '8px solid var(--border-color)',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           position: 'relative',
         }}>
-          {/* Mobile Speaker / Camera Notch */}
+          {/* Mobile Speaker Notch */}
           <div style={{
             position: 'absolute',
             top: '8px',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '120px',
-            height: '18px',
+            width: '90px',
+            height: '14px',
             borderRadius: '999px',
-            background: '#1e293b',
+            background: 'var(--border-color)',
             zIndex: 10,
           }} />
 
           {/* Mobile Status Bar */}
           <div style={{
-            padding: '12px 24px 8px',
+            padding: '10px 20px 6px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '0.75rem',
             color: 'var(--text-dim)',
-            marginTop: '16px',
+            marginTop: '12px',
           }}>
             <span>9:41</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Wifi size={14} color={settings.brand_color || '#3b82f6'} />
-              <span>5G</span>
+              <Wifi size={13} color="var(--primary)" />
+              <span>WiFi</span>
               <span>100%</span>
             </div>
           </div>
@@ -187,7 +180,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px 20px',
+            padding: '20px 16px',
             overflowY: 'auto',
             textAlign: 'center',
           }}>
@@ -197,77 +190,78 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '4px 12px',
-                borderRadius: '999px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                fontSize: '0.75rem',
-                color: '#94a3b8',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)',
                 marginBottom: '16px',
               }}>
-                <Wifi size={12} color={settings.brand_color || '#3b82f6'} />
+                <Wifi size={12} color="var(--primary)" />
                 <span>Connected to <strong>{settings.ssid_name}</strong></span>
               </div>
 
               <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '18px',
-                background: `linear-gradient(135deg, ${settings.brand_color || '#3b82f6'} 0%, #06b6d4 100%)`,
-                margin: '0 auto 16px',
+                width: '48px',
+                height: '48px',
+                borderRadius: '8px',
+                background: settings.brand_color || 'var(--primary)',
+                margin: '0 auto 12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: `0 8px 24px ${settings.brand_color}55`,
+                color: '#ffffff',
               }}>
-                <Wifi size={32} color="#ffffff" />
+                <Wifi size={24} />
               </div>
 
-              <h2 style={{ fontSize: '1.4rem', color: '#ffffff', marginBottom: '6px' }}>
-                {settings.portal_title || 'High-Speed Guest WiFi'}
+              <h2 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '4px' }}>
+                {settings.portal_title || 'Guest WiFi Access'}
               </h2>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
                 {settings.portal_subtitle || 'Enter your voucher code to connect instantly'}
               </p>
 
               {sessionSuccess ? (
                 /* Connected State */
                 <div style={{
-                  padding: '20px',
-                  borderRadius: '16px',
-                  background: 'rgba(16, 185, 129, 0.12)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
                   textAlign: 'center',
                 }}>
                   <div style={{
-                    width: '48px',
-                    height: '48px',
+                    width: '38px',
+                    height: '38px',
                     borderRadius: '50%',
-                    background: '#10b981',
+                    background: '#16a34a',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    margin: '0 auto 12px',
+                    margin: '0 auto 8px',
                   }}>
-                    <CheckCircle2 size={26} />
+                    <CheckCircle2 size={20} />
                   </div>
-                  <h3 style={{ fontSize: '1.15rem', color: '#34d399', marginBottom: '6px' }}>
-                    Internet Connected!
+                  <h3 style={{ fontSize: '1.05rem', color: '#15803d', marginBottom: '4px' }}>
+                    Connected to Internet
                   </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#166534', marginBottom: '12px' }}>
                     Plan: <strong>{sessionSuccess.planName}</strong>
                   </p>
 
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
-                    gap: '8px',
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    marginBottom: '16px',
+                    gap: '6px',
+                    background: '#ffffff',
+                    border: '1px solid #dcfce7',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    marginBottom: '12px',
                   }}>
                     <div>
                       <span style={{ color: 'var(--text-dim)', display: 'block' }}>Speed</span>
@@ -275,7 +269,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-dim)', display: 'block' }}>Duration</span>
-                      <strong>{sessionSuccess.durationMinutes} Mins</strong>
+                      <strong>{sessionSuccess.durationMinutes}m</strong>
                     </div>
                   </div>
 
@@ -283,34 +277,34 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                     type="button"
                     onClick={handleDisconnect}
                     className="btn btn-secondary"
-                    style={{ width: '100%', fontSize: '0.8rem', padding: '8px' }}
+                    style={{ width: '100%', fontSize: '0.75rem', padding: '6px' }}
                   >
-                    Disconnect Session
+                    Disconnect
                   </button>
                 </div>
               ) : (
                 /* Voucher Input Form */
-                <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {errorMsg && (
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px',
-                      background: 'rgba(244, 63, 94, 0.15)',
-                      border: '1px solid rgba(244, 63, 94, 0.3)',
-                      borderRadius: '8px',
-                      color: '#fb7185',
-                      fontSize: '0.78rem',
+                      gap: '6px',
+                      padding: '8px 10px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px',
+                      color: '#b91c1c',
+                      fontSize: '0.75rem',
                       textAlign: 'left',
                     }}>
-                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
                       <span>{errorMsg}</span>
                     </div>
                   )}
 
                   <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
+                    <Lock size={15} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-dim)' }} />
                     <input
                       type="text"
                       required
@@ -319,12 +313,13 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                       onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                       className="form-input font-mono"
                       style={{
-                        paddingLeft: '38px',
+                        paddingLeft: '34px',
                         textAlign: 'center',
-                        letterSpacing: '0.08em',
-                        fontWeight: 700,
-                        fontSize: '0.95rem',
+                        letterSpacing: '0.05em',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
                         textTransform: 'uppercase',
+                        height: '38px',
                       }}
                     />
                   </div>
@@ -335,16 +330,16 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                     className="btn btn-primary"
                     style={{
                       width: '100%',
-                      padding: '12px',
-                      background: `linear-gradient(135deg, ${settings.brand_color || '#2563eb'} 0%, #1d4ed8 100%)`,
+                      padding: '8px',
+                      fontSize: '0.85rem',
                     }}
                   >
                     {verifying ? (
-                      <span>Verifying with Supabase...</span>
+                      <span>Verifying...</span>
                     ) : (
                       <>
                         <span>Connect to Internet</span>
-                        <ArrowRight size={16} />
+                        <ArrowRight size={15} />
                       </>
                     )}
                   </button>
@@ -354,14 +349,14 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
 
             {/* Bottom Support & Terms */}
             <div style={{
-              marginTop: '20px',
-              paddingTop: '16px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              fontSize: '0.72rem',
+              marginTop: '16px',
+              paddingTop: '12px',
+              borderTop: '1px solid var(--border-color)',
+              fontSize: '0.7rem',
               color: 'var(--text-dim)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '6px' }}>
-                <Phone size={12} color="#34d399" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
+                <Phone size={11} color="var(--primary)" />
                 <span>Support: <strong>{settings.support_phone}</strong></span>
               </div>
               <p style={{ lineHeight: 1.3 }}>
@@ -373,13 +368,13 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
           {/* Mobile Home Bar indicator */}
           <div style={{
             position: 'absolute',
-            bottom: '6px',
+            bottom: '4px',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '130px',
-            height: '4px',
+            width: '100px',
+            height: '3px',
             borderRadius: '999px',
-            background: 'rgba(255, 255, 255, 0.25)',
+            background: 'var(--border-color)',
           }} />
         </div>
       </div>

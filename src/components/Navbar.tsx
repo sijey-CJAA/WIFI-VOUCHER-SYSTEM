@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wifi, Sliders, Ticket, Terminal, Smartphone, LogOut, Database, UserCheck } from 'lucide-react';
+import { Wifi, Sliders, Ticket, Terminal, Smartphone, LogOut, Database, UserCheck, Sun, Moon } from 'lucide-react';
 
 export type ActiveTab = 'wifi-setup' | 'vouchers' | 'router-script' | 'portal-preview';
 
@@ -9,6 +9,8 @@ interface NavbarProps {
   user: any;
   onLogout: () => void;
   ssid: string;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,12 +19,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   onLogout,
   ssid,
+  theme = 'light',
+  onToggleTheme,
 }) => {
   return (
     <header style={{
       borderBottom: '1px solid var(--border-color)',
-      background: 'rgba(10, 13, 20, 0.85)',
-      backdropFilter: 'blur(16px)',
+      background: 'var(--bg-card)',
       position: 'sticky',
       top: 0,
       zIndex: 50,
@@ -34,36 +37,38 @@ export const Navbar: React.FC<NavbarProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '70px',
+        height: '64px',
         gap: '20px',
       }}>
         {/* Brand & Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            textDecoration: 'none',
-            color: '#fff',
-            cursor: 'pointer',
-          }} onClick={() => setActiveTab('wifi-setup')}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              textDecoration: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => setActiveTab('wifi-setup')}
+          >
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #2563eb 0%, #06b6d4 100%)',
+              width: '36px',
+              height: '36px',
+              borderRadius: '6px',
+              background: 'var(--primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+              color: '#ffffff',
             }}>
-              <Wifi size={22} color="#ffffff" />
+              <Wifi size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)', lineHeight: 1.1 }}>
                 WiFi-Vouch
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', letterSpacing: '0.02em' }}>
                 Hotspot Controller
               </div>
             </div>
@@ -73,15 +78,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 255, 255, 0.04)',
+            gap: '6px',
+            background: 'var(--bg-secondary)',
             border: '1px solid var(--border-color)',
-            padding: '5px 12px',
-            borderRadius: '999px',
-            fontSize: '0.8rem',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '0.78rem',
           }}>
             <span style={{ color: 'var(--text-muted)' }}>SSID:</span>
-            <span style={{ fontWeight: 600, color: '#60a5fa' }}>{ssid || 'VOUCHER-WIFI-5G'}</span>
+            <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{ssid || 'VOUCHER-WIFI-5G'}</span>
           </div>
 
           {/* Supabase Status Pill */}
@@ -89,41 +94,39 @@ export const Navbar: React.FC<NavbarProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
             padding: '4px 10px',
-            borderRadius: '999px',
+            borderRadius: '6px',
             fontSize: '0.75rem',
-            color: '#34d399',
+            color: 'var(--text-muted)',
           }}>
-            <Database size={13} />
+            <Database size={13} color="var(--accent-emerald)" />
             <span>Supabase: Wifi-VOuch</span>
-            <span className="pulse-dot" style={{ backgroundColor: '#10b981', width: '6px', height: '6px' }} />
+            <span className="pulse-dot" style={{ backgroundColor: '#16a34a' }} />
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             type="button"
             onClick={() => setActiveTab('wifi-setup')}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'wifi-setup' ? 'rgba(37, 99, 235, 0.25)' : 'transparent',
-              color: activeTab === 'wifi-setup' ? '#60a5fa' : 'var(--text-muted)',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: activeTab === 'wifi-setup' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'wifi-setup' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeTab === 'wifi-setup' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.88rem',
+              fontSize: '0.85rem',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              borderBottom: activeTab === 'wifi-setup' ? '2px solid #3b82f6' : '2px solid transparent',
             }}
           >
-            <Sliders size={17} />
+            <Sliders size={15} />
             <span>WiFi Setup</span>
           </button>
 
@@ -133,20 +136,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'vouchers' ? 'rgba(37, 99, 235, 0.25)' : 'transparent',
-              color: activeTab === 'vouchers' ? '#60a5fa' : 'var(--text-muted)',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: activeTab === 'vouchers' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'vouchers' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeTab === 'vouchers' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.88rem',
+              fontSize: '0.85rem',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              borderBottom: activeTab === 'vouchers' ? '2px solid #3b82f6' : '2px solid transparent',
             }}
           >
-            <Ticket size={17} />
+            <Ticket size={15} />
             <span>Voucher Generator</span>
           </button>
 
@@ -156,20 +157,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'router-script' ? 'rgba(37, 99, 235, 0.25)' : 'transparent',
-              color: activeTab === 'router-script' ? '#60a5fa' : 'var(--text-muted)',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: activeTab === 'router-script' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'router-script' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeTab === 'router-script' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.88rem',
+              fontSize: '0.85rem',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              borderBottom: activeTab === 'router-script' ? '2px solid #3b82f6' : '2px solid transparent',
             }}
           >
-            <Terminal size={17} />
+            <Terminal size={15} />
             <span>Router Script</span>
           </button>
 
@@ -179,39 +178,49 @@ export const Navbar: React.FC<NavbarProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === 'portal-preview' ? 'rgba(37, 99, 235, 0.25)' : 'transparent',
-              color: activeTab === 'portal-preview' ? '#60a5fa' : 'var(--text-muted)',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: activeTab === 'portal-preview' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'portal-preview' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeTab === 'portal-preview' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.88rem',
+              fontSize: '0.85rem',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              borderBottom: activeTab === 'portal-preview' ? '2px solid #3b82f6' : '2px solid transparent',
             }}
           >
-            <Smartphone size={17} />
+            <Smartphone size={15} />
             <span>Portal Preview</span>
           </button>
         </nav>
 
-        {/* User Session & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* User Session, Theme Toggle & Logout */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onToggleTheme && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+              className="btn btn-secondary"
+              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+            >
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+            </button>
+          )}
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '6px 12px',
-            borderRadius: '10px',
+            background: 'var(--bg-secondary)',
+            padding: '5px 10px',
+            borderRadius: '6px',
             border: '1px solid var(--border-color)',
           }}>
-            <UserCheck size={16} color="#34d399" />
+            <UserCheck size={15} color="var(--accent-emerald)" />
             <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f3f4f6' }}>
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Hotspot Administrator'}
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Administrator'}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
                 {user?.email || 'admin@wifi-voucher.local'}
@@ -224,9 +233,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onLogout}
             title="Sign Out"
             className="btn btn-secondary"
-            style={{ padding: '8px 12px' }}
+            style={{ padding: '6px 12px', fontSize: '0.82rem' }}
           >
-            <LogOut size={16} />
+            <LogOut size={14} />
             <span>Sign Out</span>
           </button>
         </div>

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Terminal, Copy, Check, X, Shield, Download } from 'lucide-react';
 import type { WifiSettings } from '../lib/supabase';
 
-
 interface RouterScriptModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,9 +14,8 @@ export const RouterScriptModal: React.FC<RouterScriptModalProps> = ({
   settings,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'mikrotik' | 'openwrt' | 'walledgarden'>('mikrotik');
+  const [activeTab, setActiveTab] = useState<'mikrotik' | 'openwrt'>('mikrotik');
 
-  // Close on Escape key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -27,7 +25,6 @@ export const RouterScriptModal: React.FC<RouterScriptModalProps> = ({
   }, [onClose]);
 
   if (!isOpen) return null;
-
 
   // Generate MikroTik RouterOS Script dynamically using user's settings
   const mikrotikScript = `# ==============================================================================
@@ -116,8 +113,7 @@ uci commit nodogsplash
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(5, 8, 15, 0.85)',
-        backdropFilter: 'blur(10px)',
+        background: 'rgba(15, 23, 42, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -126,44 +122,46 @@ uci commit nodogsplash
       }}
     >
       <div
-        className="glass-panel"
+        className="plain-card"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '820px',
+          maxWidth: '800px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
           overflow: 'hidden',
+          padding: 0,
         }}
       >
-
         {/* Header */}
         <div style={{
-          padding: '20px 24px',
+          padding: '16px 20px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              background: 'rgba(6, 182, 212, 0.15)',
+              width: '32px',
+              height: '32px',
+              borderRadius: '6px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#06b6d4',
+              color: 'var(--primary)',
             }}>
-              <Terminal size={20} />
+              <Terminal size={18} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Router Configuration Script</h2>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                Syncing SSID: <code style={{ color: '#60a5fa' }}>{settings.ssid_name}</code>
+              <h2 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>
+                Router Configuration Script
+              </h2>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                Config for SSID: <code style={{ color: 'var(--primary)', fontWeight: 600 }}>{settings.ssid_name}</code>
               </div>
             </div>
           </div>
@@ -172,31 +170,31 @@ uci commit nodogsplash
             type="button"
             onClick={onClose}
             className="btn btn-secondary"
-            style={{ padding: '6px 10px' }}
+            style={{ padding: '6px 8px' }}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Tab switch */}
         <div style={{
-          padding: '12px 24px',
-          background: 'rgba(0, 0, 0, 0.3)',
+          padding: '8px 20px',
+          background: 'var(--bg-secondary)',
           display: 'flex',
-          gap: '10px',
+          gap: '8px',
           borderBottom: '1px solid var(--border-color)',
         }}>
           <button
             type="button"
             onClick={() => setActiveTab('mikrotik')}
             style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: activeTab === 'mikrotik' ? 'rgba(37, 99, 235, 0.3)' : 'transparent',
-              color: activeTab === 'mikrotik' ? '#60a5fa' : 'var(--text-muted)',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: activeTab === 'mikrotik' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'mikrotik' ? 'var(--bg-card)' : 'transparent',
+              color: activeTab === 'mikrotik' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.85rem',
+              fontSize: '0.825rem',
               cursor: 'pointer',
             }}
           >
@@ -206,13 +204,13 @@ uci commit nodogsplash
             type="button"
             onClick={() => setActiveTab('openwrt')}
             style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: activeTab === 'openwrt' ? 'rgba(37, 99, 235, 0.3)' : 'transparent',
-              color: activeTab === 'openwrt' ? '#60a5fa' : 'var(--text-muted)',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: activeTab === 'openwrt' ? '1px solid var(--border-color)' : '1px solid transparent',
+              background: activeTab === 'openwrt' ? 'var(--bg-card)' : 'transparent',
+              color: activeTab === 'openwrt' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
-              fontSize: '0.85rem',
+              fontSize: '0.825rem',
               cursor: 'pointer',
             }}
           >
@@ -223,16 +221,16 @@ uci commit nodogsplash
         {/* Code View */}
         <div style={{
           flex: 1,
-          padding: '20px 24px',
+          padding: '16px 20px',
           overflowY: 'auto',
-          background: '#070a10',
+          background: '#0f172a',
         }}>
           <pre style={{
             margin: 0,
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.85rem',
-            lineHeight: 1.6,
-            color: '#a5f3fc',
+            fontSize: '0.825rem',
+            lineHeight: 1.5,
+            color: '#e2e8f0',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all',
           }}>
@@ -242,25 +240,26 @@ uci commit nodogsplash
 
         {/* Footer */}
         <div style={{
-          padding: '16px 24px',
+          padding: '12px 20px',
           borderTop: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(15, 22, 35, 0.9)',
+          background: 'var(--bg-card)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-            <Shield size={14} color="#10b981" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+            <Shield size={14} color="var(--accent-emerald)" />
             <span>Includes Walled-Garden rules for Supabase endpoints</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={handleDownload}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
             >
-              <Download size={16} />
+              <Download size={14} />
               <span>Download File</span>
             </button>
 
@@ -268,9 +267,10 @@ uci commit nodogsplash
               type="button"
               className="btn btn-primary"
               onClick={handleCopy}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
             >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              <span>{copied ? 'Copied to Clipboard!' : 'Copy Script'}</span>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              <span>{copied ? 'Copied!' : 'Copy Script'}</span>
             </button>
           </div>
         </div>

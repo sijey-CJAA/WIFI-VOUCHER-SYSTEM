@@ -20,11 +20,15 @@ function App() {
   const [currentSsid, setCurrentSsid] = useState<string>('VOUCHER-WIFI-5G');
   const [isScriptModalOpen, setIsScriptModalOpen] = useState<boolean>(false);
   const [isPortalModalOpen, setIsPortalModalOpen] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('app-theme') as 'light' | 'dark') || 'light';
+  });
+
   const [wifiSettings, setWifiSettings] = useState<WifiSettings>({
     ssid_name: 'VOUCHER-WIFI-5G',
     portal_title: 'High-Speed Guest WiFi',
     portal_subtitle: 'Enter your voucher code to connect instantly',
-    brand_color: '#3b82f6',
+    brand_color: '#2563eb',
     gateway_ip: '192.168.88.1',
     router_type: 'mikrotik',
     dns_primary: '1.1.1.1',
@@ -38,6 +42,16 @@ function App() {
     terms_notice: 'By connecting, you agree to fair use and terms of acceptable service.',
     is_active: true,
   });
+
+  // Apply theme to document element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Check Supabase session on startup
   useEffect(() => {
@@ -76,7 +90,7 @@ function App() {
       id: 'demo-admin-id',
       email: 'admin@wifi-voucher.local',
       user_metadata: {
-        full_name: 'Hotspot Superadmin',
+        full_name: 'Hotspot Administrator',
         organization: 'Wifi Voucher System',
       },
     });
@@ -108,7 +122,6 @@ function App() {
     );
   }
 
-
   return (
     <div className="app-container">
       {/* Top Sticky Header */}
@@ -126,6 +139,8 @@ function App() {
         user={sessionUser}
         onLogout={handleLogout}
         ssid={currentSsid}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Main Content Area */}
