@@ -13,7 +13,10 @@ import {
   Layers,
   PowerOff,
   History,
-  Radio
+  Radio,
+  Edit2,
+  X,
+  Gauge
 } from 'lucide-react';
 
 interface VoucherManagerProps {
@@ -34,6 +37,8 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<VoucherPlan | null>(null);
+  const [savingPlan, setSavingPlan] = useState<boolean>(false);
   const [, setTick] = useState<number>(Date.now());
 
   // Helper to calculate expiration & live remaining time
@@ -192,6 +197,46 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
     } catch (err: any) {
       console.error('Error terminating voucher:', err);
       setStatusMsg(`Failed to end session: ${err.message}`);
+    }
+  };
+
+  // Save Plan updates (Speed, Price, Validity)
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPlan) return;
+    setSavingPlan(true);
+
+    try {
+      const { error } = await supabase
+        .from('voucher_plans')
+        .update({
+          name: editingPlan.name,
+          price: Number(editingPlan.price),
+          download_speed_mbps: Number(editingPlan.download_speed_mbps),
+          upload_speed_mbps: Number(editingPlan.upload_speed_mbps),
+          duration_minutes: Number(editingPlan.duration_minutes),
+          max_devices: Number(editingPlan.max_devices),
+        })
+        .eq('id', editingPlan.id);
+
+      if (error) throw error;
+
+      setPlans((prev) => prev.map((p) => p.id === editingPlan.id ? { ...editingPlan } : p));
+      setVouchers((prev) => prev.map((v) => {
+        if (v.plan_id === editingPlan.id) {
+          return { ...v, plan: { ...editingPlan } };
+        }
+        return v;
+      }));
+
+      setStatusMsg(`Updated "${editingPlan.name}": speed set to ${editingPlan.download_speed_mbps} Mbps / ${editingPlan.upload_speed_mbps} Mbps.`);
+      setEditingPlan(null);
+      setTimeout(() => setStatusMsg(null), 4000);
+    } catch (err: any) {
+      console.error('Save plan error:', err);
+      setStatusMsg(`Failed to update plan: ${err.message}`);
+    } finally {
+      setSavingPlan(false);
     }
   };
 
@@ -364,9 +409,24 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div>
-                    <h4 style={{ fontSize: '1rem', marginBottom: '2px', color: 'var(--text-main)' }}>
-                      {p.name}
-                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ fontSize: '1rem', marginBottom: '2px', color: 'var(--text-main)' }}>
+                        {p.name}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPlan({ ...p });
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 7px', fontSize: '0.72rem', gap: '3px' }}
+                        title="Edit Speed and Plan Settings"
+                      >
+                        <Edit2 size={11} />
+                        <span>Edit Speed</span>
+                      </button>
+                    </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Clock size={12} />
                       <span>{Math.round(p.duration_minutes / 60)}h validity</span>
@@ -384,17 +444,20 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
 
                 <div style={{
                   display: 'flex',
-                  gap: '6px',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   fontSize: '0.75rem',
                   paddingTop: '8px',
                   borderTop: '1px solid var(--border-color)',
                 }}>
-                  <span className="badge badge-blue">
-                    {p.download_speed_mbps}M / {p.upload_speed_mbps}M
-                  </span>
-                  <span className="badge badge-emerald">
-                    {p.max_devices} Device
-                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <span className="badge badge-blue">
+                      {p.download_speed_mbps}M Down / {p.upload_speed_mbps}M Up
+                    </span>
+                    <span className="badge badge-emerald">
+                      {p.max_devices} Device
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -795,6 +858,143 @@ export const VoucherManager: React.FC<VoucherManagerProps> = ({ currencySymbol }
           </div>
         )}
       </div>
+
+      {/* Rate Plan & Speed Editor Modal */}
+      {editingPlan && (
+        <div
+          onClick={() => setEditingPlan(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="plain-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              padding: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Gauge size={18} color="var(--primary)" />
+                <h3 style={{ fontSize: '1.15rem', margin: 0, color: 'var(--text-main)' }}>Edit Speed & Rate Plan</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPlan(null)}
+                className="btn btn-secondary"
+                style={{ padding: '4px 8px' }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePlan} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label">Plan Name</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={editingPlan.name}
+                  onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>Download Speed</span>
+                    <span className="badge badge-blue">Mbps</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    required
+                    className="form-input font-mono"
+                    style={{ fontWeight: 600, fontSize: '1rem' }}
+                    value={editingPlan.download_speed_mbps}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, download_speed_mbps: Number(e.target.value) })}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>e.g. 25, 50, 100 Mbps</span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>Upload Speed</span>
+                    <span className="badge badge-blue">Mbps</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    required
+                    className="form-input font-mono"
+                    style={{ fontWeight: 600, fontSize: '1rem' }}
+                    value={editingPlan.upload_speed_mbps}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, upload_speed_mbps: Number(e.target.value) })}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>e.g. 10, 25, 50 Mbps</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Price ({currencySymbol})</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    required
+                    className="form-input"
+                    value={editingPlan.price}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, price: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Duration (Minutes)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    className="form-input"
+                    value={editingPlan.duration_minutes}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, duration_minutes: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingPlan(null)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingPlan}
+                >
+                  {savingPlan ? 'Saving...' : 'Save Plan Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
