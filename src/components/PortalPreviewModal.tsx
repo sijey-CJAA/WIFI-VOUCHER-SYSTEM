@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Wifi, X, ArrowRight, CheckCircle2, AlertCircle, Phone, Lock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wifi, X, ArrowRight, CheckCircle2, AlertCircle, Phone, Lock, Clock } from 'lucide-react';
 import { supabase, type WifiSettings } from '../lib/supabase';
 
 interface PortalPreviewModalProps {
@@ -7,6 +7,18 @@ interface PortalPreviewModalProps {
   onClose: () => void;
   settings: WifiSettings;
 }
+
+interface ActiveSessionData {
+  voucherId: string;
+  voucherCode: string;
+  planName: string;
+  durationMinutes: number;
+  speed: string;
+  activatedAt: string;
+  expiresAt: string;
+}
+
+const PREVIEW_STORAGE_KEY = 'wifi_portal_active_session';
 
 export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
   isOpen,
@@ -16,7 +28,24 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
   const [voucherCode, setVoucherCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [sessionSuccess, setSessionSuccess] = useState<any | null>(null);
+  const [sessionSuccess, setSessionSuccess] = useState<ActiveSessionData | null>(() => {
+    try {
+      const saved = localStorage.getItem(PREVIEW_STORAGE_KEY);
+      if (saved) {
+        const parsed: ActiveSessionData = JSON.parse(saved);
+        if (new Date(parsed.expiresAt).getTime() > Date.now()) {
+          return parsed;
+        } else {
+          localStorage.removeItem(PREVIEW_STORAGE_KEY);
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading stored session:', e);
+    }
+    return null;
+  });
+
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -26,11 +55,42 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // Live countdown timer for active session
+  useEffect(() => {
+    if (!sessionSuccess) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const expiry = new Date(sessionSuccess.expiresAt).getTime();
+      const diffMs = expiry - now;
+
+      if (diffMs <= 0) {
+        setTimeRemaining('Expired');
+        handleDisconnect();
+        setErrorMsg('Your voucher session has expired.');
+        return;
+      }
+
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      const formatted = `${hours > 0 ? `${hours}h ` : ''}${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+      setTimeRemaining(formatted);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [sessionSuccess]);
+
   if (!isOpen) return null;
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!voucherCode.trim()) return;
+    const cleanCode = voucherCode.trim().toUpperCase();
+    if (!cleanCode) return;
 
     setVerifying(true);
     setErrorMsg(null);
@@ -39,7 +99,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
       const { data: voucher, error } = await supabase
         .from('vouchers')
         .select('*, plan:voucher_plans(*)')
-        .eq('code', voucherCode.trim().toUpperCase())
+        .eq('code', cleanCode)
         .maybeSingle();
 
       if (error) throw error;
@@ -50,28 +110,41 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
         return;
       }
 
-      if (voucher.status === 'used' || voucher.status === 'expired') {
+      if (voucher.status === 'used' || voucher.status === 'expired' || voucher.status === 'disabled') {
         setErrorMsg(`This voucher has already been ${voucher.status}.`);
         setVerifying(false);
         return;
       }
+
+      const durationMins = voucher.plan?.duration_minutes || 60;
+      const nowIso = new Date().toISOString();
+      const activatedAt = voucher.activated_at || nowIso;
+      const expiresAt = voucher.expires_at || 
+        new Date(new Date(activatedAt).getTime() + durationMins * 60 * 1000).toISOString();
 
       if (voucher.status === 'available') {
         await supabase
           .from('vouchers')
           .update({
             status: 'active',
-            activated_at: new Date().toISOString(),
+            activated_at: activatedAt,
+            expires_at: expiresAt,
           })
           .eq('id', voucher.id);
       }
 
-      setSessionSuccess({
+      const sessionData: ActiveSessionData = {
+        voucherId: voucher.id,
         voucherCode: voucher.code,
         planName: voucher.plan?.name || 'Standard Pass',
-        durationMinutes: voucher.plan?.duration_minutes || 60,
+        durationMinutes: durationMins,
         speed: `${voucher.plan?.download_speed_mbps || 15} Mbps`,
-      });
+        activatedAt: activatedAt,
+        expiresAt: expiresAt,
+      };
+
+      localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(sessionData));
+      setSessionSuccess(sessionData);
     } catch (err: any) {
       console.error('Portal verify error:', err);
       setErrorMsg(err.message || 'Connection error with authentication server.');
@@ -81,9 +154,11 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
   };
 
   const handleDisconnect = () => {
+    localStorage.removeItem(PREVIEW_STORAGE_KEY);
     setSessionSuccess(null);
     setVoucherCode('');
     setErrorMsg(null);
+    setTimeRemaining('');
   };
 
   return (
@@ -224,7 +299,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
               </p>
 
               {sessionSuccess ? (
-                /* Connected State */
+                /* Connected State (Persisted) */
                 <div style={{
                   padding: '16px',
                   borderRadius: '8px',
@@ -248,7 +323,7 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                   <h3 style={{ fontSize: '1.05rem', color: '#15803d', marginBottom: '4px' }}>
                     Connected to Internet
                   </h3>
-                  <p style={{ fontSize: '0.78rem', color: '#166534', marginBottom: '12px' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#166534', marginBottom: '10px' }}>
                     Plan: <strong>{sessionSuccess.planName}</strong>
                   </p>
 
@@ -261,16 +336,37 @@ export const PortalPreviewModal: React.FC<PortalPreviewModalProps> = ({
                     padding: '8px',
                     borderRadius: '6px',
                     fontSize: '0.75rem',
-                    marginBottom: '12px',
+                    marginBottom: '10px',
                   }}>
                     <div>
                       <span style={{ color: 'var(--text-dim)', display: 'block' }}>Speed</span>
                       <strong>{sessionSuccess.speed}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-dim)', display: 'block' }}>Duration</span>
-                      <strong>{sessionSuccess.durationMinutes}m</strong>
+                      <span style={{ color: 'var(--text-dim)', display: 'block' }}>Voucher</span>
+                      <strong style={{ fontFamily: 'var(--font-mono)' }}>{sessionSuccess.voucherCode}</strong>
                     </div>
+                  </div>
+
+                  {/* Countdown Timer */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 10px',
+                    background: '#ffffff',
+                    border: '1px solid #dcfce7',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    marginBottom: '12px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#166534' }}>
+                      <Clock size={12} />
+                      <span>Remaining:</span>
+                    </div>
+                    <strong style={{ color: '#15803d', fontFamily: 'var(--font-mono)' }}>
+                      {timeRemaining || 'Active'}
+                    </strong>
                   </div>
 
                   <button
